@@ -146,7 +146,21 @@ bool PFMDecoder::readData(Mat& mat)
   CV_Assert(fabs(m_scale_factor) > 0.0f);
   buffer *= 1.f / fabs(m_scale_factor);
 
-  buffer.convertTo(mat, mat.type());
+  if (buffer.channels() == mat.channels())
+  {
+    buffer.convertTo(mat, mat.type());
+  }
+  else
+  {
+    Mat converted;
+    if (buffer.channels() == 1 && mat.channels() == 3)
+      cvtColor(buffer, converted, COLOR_GRAY2BGR);
+    else if (buffer.channels() == 3 && mat.channels() == 1)
+      cvtColor(buffer, converted, m_use_rgb ? COLOR_RGB2GRAY : COLOR_BGR2GRAY);
+    else
+      return false;
+    converted.convertTo(mat, mat.type());
+  }
 
   return true;
 }
