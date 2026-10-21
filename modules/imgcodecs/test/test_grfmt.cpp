@@ -619,6 +619,37 @@ TEST(Imgcodecs_Pfm, read_write)
   EXPECT_EQ(0, remove(writefile.c_str()));
   EXPECT_EQ(0, remove(writefile_no_param.c_str()));
 }
+
+TEST(Imgcodecs_Pfm, read_mode_channel_conversion)
+{
+  Mat gray = (Mat_<float>(1, 2) << 0.25f, 0.75f);
+  std::vector<uchar> encoded;
+  ASSERT_TRUE(imencode(".pfm", gray, encoded));
+
+  Mat gray_as_color = imdecode(encoded, IMREAD_ANYDEPTH | IMREAD_COLOR);
+  ASSERT_FALSE(gray_as_color.empty());
+  ASSERT_EQ(CV_32FC3, gray_as_color.type());
+  for (int x = 0; x < gray.cols; ++x)
+  {
+    const Vec3f pixel = gray_as_color.at<Vec3f>(0, x);
+    EXPECT_FLOAT_EQ(gray.at<float>(0, x), pixel[0]);
+    EXPECT_FLOAT_EQ(gray.at<float>(0, x), pixel[1]);
+    EXPECT_FLOAT_EQ(gray.at<float>(0, x), pixel[2]);
+  }
+
+  Mat color = (Mat_<Vec3f>(1, 2) << Vec3f(0.1f, 0.5f, 0.9f), Vec3f(0.8f, 0.4f, 0.2f));
+  const string filename = tempfile(".pfm");
+  ASSERT_TRUE(imwrite(filename, color));
+
+  Mat color_as_gray = imread(filename, IMREAD_ANYDEPTH | IMREAD_GRAYSCALE);
+  EXPECT_EQ(0, remove(filename.c_str()));
+  ASSERT_FALSE(color_as_gray.empty());
+  ASSERT_EQ(CV_32FC1, color_as_gray.type());
+
+  Mat expected;
+  cvtColor(color, expected, COLOR_BGR2GRAY);
+  EXPECT_PRED_FORMAT2(cvtest::MatComparator(1e-6, 0), expected, color_as_gray);
+}
 #endif
 
 TEST(Imgcodecs, write_parameter_type)
